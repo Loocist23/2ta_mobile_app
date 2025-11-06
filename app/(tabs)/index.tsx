@@ -1,5 +1,5 @@
 import React from 'react';
-import { Alert, Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
+import { Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
 
 import { useRouter } from 'expo-router';
 
@@ -70,7 +70,7 @@ export default function HomeScreen() {
       <View style={styles.section}>
         <View style={styles.sectionHeader}>
           <Text style={styles.sectionTitle}>Mes alertes actives</Text>
-          <Pressable onPress={() => Alert.alert('Créer une alerte', 'Rendez-vous sur votre profil pour créer de nouvelles alertes.')}>
+          <Pressable onPress={() => router.push('/(tabs)/profile/alert-editor')}>
             <Text style={styles.sectionAction}>Créer une alerte</Text>
           </Pressable>
         </View>

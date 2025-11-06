@@ -1,5 +1,6 @@
+import { useRouter } from 'expo-router';
 import React, { useMemo, useState } from 'react';
-import { FlatList, Pressable, StyleSheet, Text, View } from 'react-native';
+import { Alert, FlatList, Pressable, StyleSheet, Text, View } from 'react-native';
 
 import { IconSymbol } from '@/components/ui/icon-symbol';
 import { Colors } from '@/constants/theme';
@@ -15,7 +16,8 @@ const FILTERS: { label: string; value: FilterValue }[] = [
 ];
 
 export default function NotificationsScreen() {
-  const { user, markNotificationRead, markAllNotificationsRead } = useAuth();
+  const router = useRouter();
+  const { user, markNotificationRead, markAllNotificationsRead, removeNotification } = useAuth();
   const [filter, setFilter] = useState<FilterValue>('all');
 
   const notifications = useMemo(() => {
@@ -33,6 +35,40 @@ export default function NotificationsScreen() {
   if (!user) {
     return null;
   }
+
+  const handleNotificationPress = (notificationId: string) => {
+    const notification = user.notifications.find((item) => item.id === notificationId);
+    if (!notification) {
+      return;
+    }
+
+    markNotificationRead(notificationId);
+
+    if (!notification.link) {
+      return;
+    }
+
+    switch (notification.link.type) {
+      case 'application':
+        router.push({ pathname: '/(tabs)/applications/[id]', params: { id: notification.link.applicationId } });
+        break;
+      case 'alert':
+        router.push({ pathname: '/search', params: { alertId: notification.link.alertId } });
+        break;
+      case 'job':
+        router.push({ pathname: '/jobs/[id]', params: { id: notification.link.jobId } });
+        break;
+      default:
+        break;
+    }
+  };
+
+  const handleDelete = (notificationId: string) => {
+    Alert.alert('Supprimer la notification', 'Voulez-vous retirer cette notification ?', [
+      { text: 'Annuler', style: 'cancel' },
+      { text: 'Supprimer', style: 'destructive', onPress: () => removeNotification(notificationId) },
+    ]);
+  };
 
   const renderIcon = (type: string) => {
     switch (type) {
@@ -83,7 +119,7 @@ export default function NotificationsScreen() {
           const isUnread = !item.read;
           return (
             <Pressable
-              onPress={() => markNotificationRead(item.id)}
+              onPress={() => handleNotificationPress(item.id)}
               style={[styles.notificationCard, isUnread && styles.notificationUnread]}
               accessibilityRole="button">
               <View style={styles.iconContainer}>{renderIcon(item.type)}</View>
@@ -95,6 +131,13 @@ export default function NotificationsScreen() {
                 <Text style={styles.notificationMessage}>{item.message}</Text>
                 {isUnread && <Text style={styles.unreadBadge}>Nouvelle</Text>}
               </View>
+              <Pressable
+                accessibilityRole="button"
+                onPress={() => handleDelete(item.id)}
+                style={({ pressed }) => [styles.deleteButton, pressed && styles.pressed]}
+                hitSlop={8}>
+                <IconSymbol name="trash" size={18} color="#D13C3C" />
+              </Pressable>
             </Pressable>
           );
         }}
@@ -193,6 +236,11 @@ const styles = StyleSheet.create({
   notificationContent: {
     flex: 1,
     gap: 6,
+  },
+  deleteButton: {
+    padding: 6,
+    borderRadius: 16,
+    backgroundColor: '#FFE6E6',
   },
   notificationHeader: {
     flexDirection: 'row',

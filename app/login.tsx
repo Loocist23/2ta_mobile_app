@@ -26,6 +26,7 @@ export default function LoginScreen() {
     signInWithGoogle,
     signInWithApple,
     signInWithEmail,
+    requestPasswordReset,
   } = useAuth();
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
@@ -60,6 +61,44 @@ export default function LoginScreen() {
       } else {
         setError('Une erreur inattendue est survenue.');
       }
+    }
+  };
+
+  const toggleResetMode = () => {
+    if (mode === 'reset') {
+      setMode('login');
+      setResetEmail('');
+      setResetError(null);
+      setResetSuccess(null);
+    } else {
+      setMode('reset');
+      setResetEmail(email.trim());
+      setResetError(null);
+      setResetSuccess(null);
+    }
+  };
+
+  const handleRequestReset = async () => {
+    setResetError(null);
+    setResetSuccess(null);
+    const normalized = resetEmail.trim();
+
+    if (!normalized) {
+      setResetError('Veuillez renseigner votre adresse email.');
+      return;
+    }
+    try {
+      setResetSubmitting(true);
+      await requestPasswordReset(normalized);
+      setResetSuccess('Nous venons de vous envoyer un email pour réinitialiser votre mot de passe.');
+    } catch (err) {
+      if (err instanceof Error) {
+        setResetError(err.message);
+      } else {
+        setResetError('Impossible d’envoyer le lien pour le moment.');
+      }
+    } finally {
+      setResetSubmitting(false);
     }
   };
 
@@ -174,6 +213,51 @@ export default function LoginScreen() {
               <Text style={styles.submitText}>Se connecter / Créer un compte</Text>
             )}
           </Pressable>
+
+          <Pressable
+            accessibilityRole="button"
+            onPress={toggleResetMode}
+            style={({ pressed }) => [styles.linkButton, pressed && styles.buttonPressed]}>
+            <Text style={styles.linkButtonText}>
+              {mode === 'reset' ? 'Revenir à la connexion' : 'Mot de passe oublié ?'}
+            </Text>
+          </Pressable>
+
+          {mode === 'reset' && (
+            <View style={styles.resetCard}>
+              <Text style={styles.resetTitle}>Réinitialiser mon mot de passe</Text>
+              <Text style={styles.resetDescription}>
+                Indiquez votre adresse email pour recevoir un lien sécurisé de réinitialisation.
+              </Text>
+              <TextInput
+                value={resetEmail}
+                onChangeText={setResetEmail}
+                placeholder="prenom.nom@email.com"
+                keyboardType="email-address"
+                autoCapitalize="none"
+                autoComplete="email"
+                style={styles.resetInput}
+                placeholderTextColor="#9AA2AA"
+              />
+              {resetError && <Text style={styles.errorText}>{resetError}</Text>}
+              {resetSuccess && <Text style={styles.successText}>{resetSuccess}</Text>}
+              <Pressable
+                accessibilityRole="button"
+                onPress={handleRequestReset}
+                disabled={resetSubmitting || resetEmail.trim().length === 0}
+                style={({ pressed }) => [
+                  styles.resetButton,
+                  pressed && styles.buttonPressed,
+                  (resetSubmitting || resetEmail.trim().length === 0) && styles.buttonDisabled,
+                ]}>
+                {resetSubmitting ? (
+                  <ActivityIndicator color="#fff" />
+                ) : (
+                  <Text style={styles.resetButtonText}>Envoyer le lien de réinitialisation</Text>
+                )}
+              </Pressable>
+            </View>
+          )}
 
           <Text style={styles.termsText}>
             En continuant, vous acceptez nos Conditions Générales d’utilisation et notre politique de confidentialité.
@@ -317,11 +401,64 @@ const styles = StyleSheet.create({
     fontWeight: '600',
     fontSize: 16,
   },
+  linkButton: {
+    paddingVertical: 12,
+    alignItems: 'center',
+  },
+  linkButtonText: {
+    color: Colors.light.tint,
+    fontSize: 14,
+    fontWeight: '600',
+  },
+  resetCard: {
+    marginTop: 12,
+    backgroundColor: '#F0F4FF',
+    borderRadius: 14,
+    padding: 16,
+    gap: 12,
+  },
+  resetTitle: {
+    fontSize: 16,
+    fontWeight: '600',
+    color: Colors.light.text,
+  },
+  resetDescription: {
+    fontSize: 14,
+    color: '#4E5A64',
+    lineHeight: 20,
+  },
+  resetInput: {
+    borderWidth: 1,
+    borderColor: '#C7D6F8',
+    borderRadius: 12,
+    paddingHorizontal: 16,
+    paddingVertical: 12,
+    fontSize: 15,
+    color: Colors.light.text,
+    backgroundColor: '#fff',
+  },
+  resetButton: {
+    backgroundColor: Colors.light.tint,
+    borderRadius: 12,
+    paddingVertical: 12,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  resetButtonText: {
+    color: '#fff',
+    fontWeight: '600',
+    fontSize: 15,
+  },
   buttonDisabled: {
     opacity: 0.6,
   },
   errorText: {
     color: '#C0353A',
+    fontSize: 14,
+    textAlign: 'center',
+  },
+  successText: {
+    color: '#1B6AE5',
     fontSize: 14,
     textAlign: 'center',
   },
