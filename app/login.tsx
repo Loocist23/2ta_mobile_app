@@ -19,7 +19,7 @@ export default function LoginScreen() {
   const { user, loading, signInWithGoogle } = useAuth();
 
   if (user) {
-    return <Redirect href="/(tabs)/" />;
+    return <Redirect href="/(tabs)" />;
   }
 
   return (
@@ -29,7 +29,7 @@ export default function LoginScreen() {
           <IconSymbol name="briefcase.fill" size={32} color="#0A66C2" />
         </View>
         <ThemedText type="title" style={styles.title}>
-          Retrouvez toutes les opportunités carrière sur HelloWork
+          Retrouvez toutes les opportunités d&#39;alternance sur Trouve Ton Alternance(2TA)
         </ThemedText>
         <ThemedText style={styles.subtitle}>
           Créez votre compte en quelques secondes pour découvrir les offres qui vous correspondent, suivre vos candidatures et recevoir vos alertes personnalisées.
@@ -39,7 +39,7 @@ export default function LoginScreen() {
       <ThemedView style={styles.card}>
         <Text style={styles.cardTitle}>Connexion requise</Text>
         <Text style={styles.cardDescription}>
-          L’accès à l’application nécessite un compte HelloWork. Connectez-vous avec Google pour sécuriser votre profil et retrouver vos données sur tous vos appareils.
+          L’accès à l’application nécessite un compte Trouve Ton Alternance(2TA). Connectez-vous avec Google pour sécuriser votre profil et retrouver vos données sur tous vos appareils.
         </Text>
         <Pressable
           accessibilityRole="button"
@@ -50,7 +50,7 @@ export default function LoginScreen() {
             <ActivityIndicator color="#fff" />
           ) : (
             <>
-              <IconSymbol name="g.circle.fill" size={24} color="#fff" />
+              <IconSymbol name="a.login" size={24} color="#fff" />
               <Text style={styles.googleText}>Continuer avec Google</Text>
             </>
           )}
@@ -59,42 +59,6 @@ export default function LoginScreen() {
           En continuant, vous acceptez nos Conditions Générales d’utilisation et notre politique de confidentialité.
         </Text>
       </ThemedView>
-
-      <View style={styles.bottomContent}>
-        <View style={styles.benefit}>
-          <View style={styles.benefitIcon}>
-            <IconSymbol name="bell.badge.fill" size={24} color={Colors.light.tint} />
-          </View>
-          <View style={styles.benefitTextContainer}>
-            <Text style={styles.benefitTitle}>Alertes sur-mesure</Text>
-            <Text style={styles.benefitSubtitle}>
-              Recevez en priorité les offres qui vous correspondent.
-            </Text>
-          </View>
-        </View>
-        <View style={styles.benefit}>
-          <View style={styles.benefitIcon}>
-            <IconSymbol name="tray.full.fill" size={24} color={Colors.light.tint} />
-          </View>
-          <View style={styles.benefitTextContainer}>
-            <Text style={styles.benefitTitle}>Suivi des candidatures</Text>
-            <Text style={styles.benefitSubtitle}>
-              Retrouvez vos échanges recruteurs et vos prochaines étapes.
-            </Text>
-          </View>
-        </View>
-        <View style={styles.benefit}>
-          <View style={styles.benefitIcon}>
-            <IconSymbol name="person.crop.circle.badge.checkmark" size={24} color={Colors.light.tint} />
-          </View>
-          <View style={styles.benefitTextContainer}>
-            <Text style={styles.benefitTitle}>Profil sécurisé</Text>
-            <Text style={styles.benefitSubtitle}>
-              Gérez vos CV, vos informations et vos préférences en toute simplicité.
-            </Text>
-          </View>
-        </View>
-      </View>
     </ScrollView>
   );
 }
