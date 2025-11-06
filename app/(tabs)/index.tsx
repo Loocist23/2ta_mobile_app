@@ -1,29 +1,26 @@
 import React from 'react';
 import { Alert, Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
 
+import { useRouter } from 'expo-router';
+
 import { JobCard } from '@/components/job-card';
 import { IconSymbol } from '@/components/ui/icon-symbol';
-import {
-  highlightedTopics,
-  jobOffers,
-  partnerCompanies,
-} from '@/constants/jobs';
+import { highlightedTopics, jobOffers } from '@/constants/jobs';
+import { partnerCompanies } from '@/constants/companies';
 import { Colors } from '@/constants/theme';
 import { useAuth } from '@/context/AuthContext';
+import { showApplicationFeedback } from '@/utils/feedback';
 
 export default function HomeScreen() {
   const { user, toggleFavorite } = useAuth();
+  const router = useRouter();
 
   if (!user) {
     return null;
   }
 
   const handleApply = (jobTitle: string) => {
-    Alert.alert(
-      'Candidature envoyée',
-      `Votre candidature pour "${jobTitle}" a bien été prise en compte. Retrouvez son suivi dans l'onglet Candidatures.`,
-      [{ text: 'Fermer' }]
-    );
+    showApplicationFeedback(jobTitle);
   };
 
   const activeAlerts = user.alerts.filter((alert) => alert.active);
@@ -40,7 +37,7 @@ export default function HomeScreen() {
         </View>
         <Pressable
           accessibilityRole="button"
-          onPress={() => Alert.alert('Vos notifications', 'Retrouvez le détail dans l’onglet Notifs.')}>
+          onPress={() => router.push('/(tabs)/notifications')}>
           <View style={styles.notificationBubble}>
             <IconSymbol name="bell.badge.fill" size={22} color={Colors.light.tint} />
             <View style={styles.badge}>
@@ -79,7 +76,18 @@ export default function HomeScreen() {
         </View>
         <View style={styles.alertGrid}>
           {activeAlerts.map((alert) => (
-            <View key={alert.id} style={styles.alertCard}>
+            <Pressable
+              key={alert.id}
+              style={styles.alertCard}
+              accessibilityRole="button"
+              onPress={() =>
+                router.push({
+                  pathname: '/search',
+                  params: {
+                    alertId: alert.id,
+                  },
+                })
+              }>
               <View style={styles.alertHeader}>
                 <IconSymbol name="bell.badge.fill" size={20} color={Colors.light.tint} />
                 <Text style={styles.alertTitle}>{alert.title}</Text>
@@ -87,7 +95,7 @@ export default function HomeScreen() {
               <Text style={styles.alertMeta}>{alert.location} • {alert.frequency}</Text>
               <Text style={styles.alertKeywords}>{alert.keywords.join(' · ')}</Text>
               <Text style={styles.alertFooter}>Dernière alerte : {alert.lastRun}</Text>
-            </View>
+            </Pressable>
           ))}
           {activeAlerts.length === 0 && (
             <View style={styles.emptyAlert}>
@@ -111,6 +119,12 @@ export default function HomeScreen() {
               isFavorite={user.favorites.includes(job.id)}
               onToggleFavorite={() => toggleFavorite(job.id)}
               onApply={() => handleApply(job.title)}
+              onPress={() =>
+                router.push({
+                  pathname: '/jobs/[id]',
+                  params: { id: job.id },
+                })
+              }
             />
           ))}
         </View>
@@ -132,16 +146,23 @@ export default function HomeScreen() {
       <View style={styles.section}>
         <View style={styles.sectionHeader}>
           <Text style={styles.sectionTitle}>Entreprises partenaires</Text>
-          <Pressable onPress={() => Alert.alert('Entreprises partenaires', 'Découvrez toutes nos entreprises partenaires depuis le site HelloWork.')}> 
+          <Pressable onPress={() => router.push('/companies')}>
             <Text style={styles.sectionAction}>Voir tout</Text>
           </Pressable>
         </View>
         <View style={styles.partnerRow}>
           {partnerCompanies.map((partner) => (
-            <View key={partner.id} style={styles.partnerCard}>
+            <Pressable
+              key={partner.id}
+              style={styles.partnerCard}
+              accessibilityRole="button"
+              onPress={() =>
+                router.push({ pathname: '/companies/[id]', params: { id: partner.id } })
+              }>
               <Text style={styles.partnerName}>{partner.name}</Text>
-              <Text style={styles.partnerRoles}>{partner.roles} postes ouverts</Text>
-            </View>
+              <Text style={styles.partnerRoles}>{partner.openRoles} postes ouverts</Text>
+              <Text style={styles.partnerLocation}>{partner.location}</Text>
+            </Pressable>
           ))}
         </View>
       </View>
@@ -346,5 +367,9 @@ const styles = StyleSheet.create({
   partnerRoles: {
     fontSize: 13,
     color: '#59636A',
+  },
+  partnerLocation: {
+    fontSize: 12,
+    color: '#889097',
   },
 });

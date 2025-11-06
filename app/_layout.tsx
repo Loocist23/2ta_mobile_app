@@ -20,6 +20,10 @@ export default function RootLayout() {
           <Stack.Screen name="(tabs)" />
           <Stack.Screen name="login" />
           <Stack.Screen name="modal" options={{ presentation: 'modal', title: 'Modal' }} />
+          <Stack.Screen name="search" />
+          <Stack.Screen name="jobs/[id]" />
+          <Stack.Screen name="companies/index" />
+          <Stack.Screen name="companies/[id]" />
         </Stack>
         <StatusBar style="auto" />
       </ThemeProvider>

@@ -1,5 +1,5 @@
 import React from 'react';
-import { Pressable, StyleSheet, Text, View } from 'react-native';
+import { GestureResponderEvent, Pressable, StyleSheet, Text, View } from 'react-native';
 
 import { IconSymbol } from '@/components/ui/icon-symbol';
 import { JobOffer } from '@/constants/jobs';
@@ -10,11 +10,27 @@ type JobCardProps = {
   isFavorite: boolean;
   onToggleFavorite: () => void;
   onApply?: () => void;
+  onPress?: () => void;
 };
 
-export function JobCard({ job, isFavorite, onToggleFavorite, onApply }: JobCardProps) {
+export function JobCard({ job, isFavorite, onToggleFavorite, onApply, onPress }: JobCardProps) {
+  const handleCardPress = () => {
+    if (onPress) {
+      onPress();
+    }
+  };
+
+  const stopPropagation = (callback: () => void) => (event: GestureResponderEvent) => {
+    event.stopPropagation();
+    callback();
+  };
+
   return (
-    <View style={styles.card}>
+    <Pressable
+      onPress={handleCardPress}
+      disabled={!onPress}
+      style={({ pressed }) => [styles.card, onPress && pressed && styles.cardPressed]}
+      accessibilityRole={onPress ? 'button' : undefined}>
       <View style={styles.header}>
         <View style={styles.logo}>
           <Text style={styles.logoLetter}>{job.company.slice(0, 1)}</Text>
@@ -29,7 +45,7 @@ export function JobCard({ job, isFavorite, onToggleFavorite, onApply }: JobCardP
           accessibilityRole="button"
           accessibilityLabel={isFavorite ? 'Retirer des favoris' : 'Ajouter aux favoris'}
           style={({ pressed }) => [styles.iconButton, pressed && styles.pressed]}
-          onPress={onToggleFavorite}>
+          onPress={stopPropagation(onToggleFavorite)}>
           <IconSymbol
             name="bookmark.fill"
             size={22}
@@ -69,7 +85,7 @@ export function JobCard({ job, isFavorite, onToggleFavorite, onApply }: JobCardP
           <Text style={styles.salaryText}>{job.salary}</Text>
         </View>
         <Pressable
-          onPress={onApply}
+          onPress={onApply ? stopPropagation(onApply) : undefined}
           accessibilityRole="button"
           style={({ pressed }) => [styles.applyButton, pressed && styles.pressed]}
           android_ripple={{ color: '#D9E8F5' }}>
@@ -77,7 +93,7 @@ export function JobCard({ job, isFavorite, onToggleFavorite, onApply }: JobCardP
           <IconSymbol name="arrow.right.circle.fill" size={20} color="#fff" />
         </Pressable>
       </View>
-    </View>
+    </Pressable>
   );
 }
 
@@ -92,6 +108,9 @@ const styles = StyleSheet.create({
     shadowOpacity: 0.05,
     shadowRadius: 18,
     elevation: 3,
+  },
+  cardPressed: {
+    transform: [{ scale: 0.99 }],
   },
   header: {
     flexDirection: 'row',
