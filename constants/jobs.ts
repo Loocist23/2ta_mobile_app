@@ -2,6 +2,7 @@ export type JobOffer = {
   id: string;
   title: string;
   company: string;
+  companyId?: string;
   location: string;
   contract: 'CDI' | 'CDD' | 'Freelance' | 'Stage';
   salary: string;
@@ -16,6 +17,7 @@ export const jobOffers: JobOffer[] = [
     id: 'job-1',
     title: 'Product Designer Senior',
     company: 'HelloWork',
+    companyId: 'company-hellowork',
     location: 'Paris (75)',
     contract: 'CDI',
     salary: '55 - 65 k€',
@@ -29,6 +31,7 @@ export const jobOffers: JobOffer[] = [
     id: 'job-2',
     title: 'Product Manager Confirmé',
     company: 'ScaleUp Labs',
+    companyId: 'company-scaleup',
     location: 'Lille (59)',
     contract: 'CDI',
     salary: '60 - 70 k€',
@@ -42,6 +45,7 @@ export const jobOffers: JobOffer[] = [
     id: 'job-3',
     title: 'Lead Product Designer',
     company: 'RetailX',
+    companyId: 'company-retailx',
     location: 'Lyon (69)',
     contract: 'CDI',
     salary: '65 - 75 k€',
@@ -55,6 +59,7 @@ export const jobOffers: JobOffer[] = [
     id: 'job-4',
     title: 'UX Researcher',
     company: 'SaaSly',
+    companyId: 'company-saasly',
     location: 'Télétravail',
     contract: 'CDI',
     salary: '45 - 55 k€',
@@ -68,6 +73,7 @@ export const jobOffers: JobOffer[] = [
     id: 'job-5',
     title: 'Product Owner',
     company: 'GreenTech',
+    companyId: 'company-greentech',
     location: 'Bordeaux (33)',
     contract: 'CDD',
     salary: '42 - 48 k€',
@@ -81,6 +87,7 @@ export const jobOffers: JobOffer[] = [
     id: 'job-6',
     title: 'Product Designer Junior',
     company: 'Nova Studio',
+    companyId: 'company-nova',
     location: 'Rennes (35)',
     contract: 'Stage',
     salary: '1 200 € / mois',
@@ -110,9 +117,3 @@ export const highlightedTopics = [
   },
 ];
 
-export const partnerCompanies = [
-  { id: 'partner-1', name: 'Blablacar', roles: 4 },
-  { id: 'partner-2', name: 'BackMarket', roles: 6 },
-  { id: 'partner-3', name: 'Doctolib', roles: 3 },
-  { id: 'partner-4', name: 'Qonto', roles: 2 },
-];
