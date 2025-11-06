@@ -2,12 +2,15 @@ import React, {
   createContext,
   useCallback,
   useContext,
+  useEffect,
   useMemo,
+  useRef,
   useState,
 } from 'react';
 import { Alert } from 'react-native';
 
 import { jobOffers } from '@/constants/jobs';
+import { getItem, removeItem, setItem } from '@/utils/persistent-storage';
 
 type NotificationType = 'application' | 'alert' | 'information';
 
@@ -81,9 +84,12 @@ type AuthenticatedUser = {
 
 type AuthContextValue = {
   user: AuthenticatedUser | null;
+  hydrated: boolean;
   loading: boolean;
   signInWithGoogle: () => Promise<void>;
-  signOut: () => void;
+  signInWithApple: () => Promise<void>;
+  signInWithEmail: (credentials: EmailCredentials) => Promise<void>;
+  signOut: () => Promise<void>;
   toggleFavorite: (jobId: string) => void;
   markNotificationRead: (notificationId: string) => void;
   markAllNotificationsRead: () => void;
@@ -92,10 +98,81 @@ type AuthContextValue = {
     settings: Partial<AuthenticatedUser['settings']>
   ) => void;
   createPassword: () => void;
-  deleteAccount: () => void;
+  deleteAccount: () => Promise<void>;
 };
 
 const AuthContext = createContext<AuthContextValue | undefined>(undefined);
+
+type StoredAccountProvider = 'google' | 'apple' | 'email';
+
+type StoredAccount = {
+  user: AuthenticatedUser;
+  provider: StoredAccountProvider;
+  password?: string;
+};
+
+type StoredAccountMap = Record<string, StoredAccount>;
+
+type EmailCredentials = {
+  email: string;
+  password: string;
+  fullName?: string;
+};
+
+const CURRENT_USER_KEY = '2ta.auth.currentUser';
+const REGISTERED_ACCOUNTS_KEY = '2ta.auth.accounts';
+
+function cloneUser(user: AuthenticatedUser): AuthenticatedUser {
+  return {
+    ...user,
+    favorites: [...user.favorites],
+    alerts: user.alerts.map((alert) => ({ ...alert })),
+    cvs: user.cvs.map((cv) => ({ ...cv })),
+    applications: user.applications.map((application) => ({ ...application })),
+    notifications: user.notifications.map((notification) => ({ ...notification })),
+    stats: { ...user.stats },
+    settings: { ...user.settings },
+  };
+}
+
+function createDefaultUser(overrides: Partial<AuthenticatedUser> = {}): AuthenticatedUser {
+  const base = cloneUser(mockUser);
+  const merged: AuthenticatedUser = {
+    ...base,
+    ...overrides,
+    favorites: overrides.favorites ? [...overrides.favorites] : base.favorites,
+    alerts: overrides.alerts
+      ? overrides.alerts.map((alert) => ({ ...alert }))
+      : base.alerts,
+    cvs: overrides.cvs ? overrides.cvs.map((cv) => ({ ...cv })) : base.cvs,
+    applications: overrides.applications
+      ? overrides.applications.map((application) => ({ ...application }))
+      : base.applications,
+    notifications: overrides.notifications
+      ? overrides.notifications.map((notification) => ({ ...notification }))
+      : base.notifications,
+    stats: overrides.stats ? { ...base.stats, ...overrides.stats } : base.stats,
+    settings: overrides.settings
+      ? { ...base.settings, ...overrides.settings }
+      : base.settings,
+  };
+
+  return merged;
+}
+
+function extractInitials(fullName: string) {
+  const segments = fullName
+    .trim()
+    .split(/\s+/)
+    .filter(Boolean);
+  if (segments.length === 0) {
+    return 'US';
+  }
+  if (segments.length === 1) {
+    return segments[0].slice(0, 2).toUpperCase();
+  }
+  return `${segments[0][0]}${segments[segments.length - 1][0]}`.toUpperCase();
+}
 
 const mockUser: AuthenticatedUser = {
   id: 'user-1',
@@ -208,18 +285,201 @@ const mockUser: AuthenticatedUser = {
 export function AuthProvider({ children }: { children: React.ReactNode }) {
   const [user, setUser] = useState<AuthenticatedUser | null>(null);
   const [loading, setLoading] = useState(false);
+  const [hydrated, setHydrated] = useState(false);
+  const accountsRef = useRef<StoredAccountMap>({});
+  const activeEmailRef = useRef<string | null>(null);
+
+  useEffect(() => {
+    let isMounted = true;
+
+    async function bootstrapAuth() {
+      try {
+        const [storedUser, storedAccounts] = await Promise.all([
+          getItem(CURRENT_USER_KEY),
+          getItem(REGISTERED_ACCOUNTS_KEY),
+        ]);
+
+        if (storedAccounts) {
+          try {
+            accountsRef.current = JSON.parse(storedAccounts) as StoredAccountMap;
+          } catch (error) {
+            accountsRef.current = {};
+          }
+        }
+
+        if (storedUser) {
+          try {
+            const parsed = JSON.parse(storedUser) as AuthenticatedUser;
+            if (isMounted) {
+              setUser(cloneUser(parsed));
+              activeEmailRef.current = parsed.email.toLowerCase();
+            }
+          } catch (error) {
+            // Ignore invalid JSON and start with a clean state.
+          }
+        }
+      } finally {
+        if (isMounted) {
+          setHydrated(true);
+        }
+      }
+    }
+
+    void bootstrapAuth();
+
+    return () => {
+      isMounted = false;
+    };
+  }, []);
+
+  useEffect(() => {
+    if (!hydrated) {
+      return;
+    }
+
+    const persist = async () => {
+      if (user) {
+        activeEmailRef.current = user.email.toLowerCase();
+        await setItem(CURRENT_USER_KEY, JSON.stringify(user));
+
+        const normalizedEmail = user.email.toLowerCase();
+        const existing = accountsRef.current[normalizedEmail];
+        if (existing) {
+          accountsRef.current[normalizedEmail] = {
+            ...existing,
+            user: cloneUser(user),
+          };
+        } else {
+          accountsRef.current[normalizedEmail] = {
+            user: cloneUser(user),
+            provider: 'email',
+          };
+        }
+      } else {
+        activeEmailRef.current = null;
+        await removeItem(CURRENT_USER_KEY);
+      }
+
+      await setItem(REGISTERED_ACCOUNTS_KEY, JSON.stringify(accountsRef.current));
+    };
+
+    void persist();
+  }, [user, hydrated]);
 
   const signInWithGoogle = useCallback(async () => {
     try {
       setLoading(true);
       await new Promise((resolve) => setTimeout(resolve, 750));
-      setUser(mockUser);
+      const googleUser = createDefaultUser({
+        id: 'google-user-1',
+        email: 'camille.martin@example.com',
+        hasPassword: false,
+      });
+
+      const normalizedEmail = googleUser.email.toLowerCase();
+      accountsRef.current[normalizedEmail] = {
+        user: cloneUser(googleUser),
+        provider: 'google',
+      };
+      setUser(googleUser);
     } finally {
       setLoading(false);
     }
   }, []);
 
-  const signOut = useCallback(() => {
+  const signInWithApple = useCallback(async () => {
+    try {
+      setLoading(true);
+      await new Promise((resolve) => setTimeout(resolve, 750));
+
+      const appleUser = createDefaultUser({
+        id: 'apple-user-1',
+        email: 'camille.martin@icloud.com',
+        hasPassword: false,
+      });
+
+      const normalizedEmail = appleUser.email.toLowerCase();
+      accountsRef.current[normalizedEmail] = {
+        user: cloneUser(appleUser),
+        provider: 'apple',
+      };
+      setUser(appleUser);
+    } finally {
+      setLoading(false);
+    }
+  }, []);
+
+  const signInWithEmail = useCallback(
+    async ({ email, password, fullName }: EmailCredentials) => {
+      const normalizedEmail = email.trim().toLowerCase();
+
+      if (!normalizedEmail) {
+        throw new Error('Veuillez renseigner une adresse email.');
+      }
+
+      if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(normalizedEmail)) {
+        throw new Error("L'adresse email n'est pas valide.");
+      }
+
+      if (!password || password.length < 6) {
+        throw new Error('Le mot de passe doit contenir au moins 6 caractères.');
+      }
+
+      try {
+        setLoading(true);
+        await new Promise((resolve) => setTimeout(resolve, 600));
+
+        const existingAccount = accountsRef.current[normalizedEmail];
+
+        if (existingAccount) {
+          if (existingAccount.provider !== 'email') {
+            throw new Error(
+              'Ce compte utilise une connexion via un fournisseur externe. Veuillez vous connecter avec celui-ci.'
+            );
+          }
+
+          if (existingAccount.password !== password) {
+            throw new Error('Mot de passe incorrect.');
+          }
+
+          setUser(cloneUser(existingAccount.user));
+          return;
+        }
+
+        const generatedName = fullName?.trim() || normalizedEmail.split('@')[0];
+        const normalizedName = generatedName
+          .split(' ')
+          .map((segment) =>
+            segment.length > 0
+              ? segment[0].toUpperCase() + segment.slice(1).toLowerCase()
+              : segment
+          )
+          .join(' ');
+
+        const emailUser = createDefaultUser({
+          id: `email-user-${Date.now()}`,
+          email: normalizedEmail,
+          name: normalizedName || 'Utilisateur 2TA',
+          avatarInitials: extractInitials(normalizedName || normalizedEmail),
+          hasPassword: true,
+        });
+
+        accountsRef.current[normalizedEmail] = {
+          user: cloneUser(emailUser),
+          provider: 'email',
+          password,
+        };
+
+        setUser(emailUser);
+      } finally {
+        setLoading(false);
+      }
+    },
+    []
+  );
+
+  const signOut = useCallback(async () => {
+    activeEmailRef.current = null;
     setUser(null);
   }, []);
 
@@ -331,20 +591,31 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     });
   }, [user]);
 
-  const deleteAccount = useCallback(() => {
+  const deleteAccount = useCallback(async () => {
+    if (!user) {
+      return;
+    }
+
     Alert.alert(
       'Suppression du compte',
       'Votre compte et vos données associées ont été supprimés. Vous pourrez revenir quand vous le souhaitez !',
       [{ text: 'Fermer' }]
     );
+
+    const normalizedEmail = user.email.toLowerCase();
+    delete accountsRef.current[normalizedEmail];
+    activeEmailRef.current = null;
     setUser(null);
-  }, []);
+  }, [user]);
 
   const value = useMemo(
     () => ({
       user,
+      hydrated,
       loading,
       signInWithGoogle,
+      signInWithApple,
+      signInWithEmail,
       signOut,
       toggleFavorite,
       markNotificationRead,
@@ -357,9 +628,12 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     [
       createPassword,
       deleteAccount,
+      hydrated,
       loading,
       markAllNotificationsRead,
       markNotificationRead,
+      signInWithApple,
+      signInWithEmail,
       signInWithGoogle,
       signOut,
       toggleAlertActivation,
