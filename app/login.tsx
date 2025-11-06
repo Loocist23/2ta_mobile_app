@@ -32,11 +32,6 @@ export default function LoginScreen() {
   const [password, setPassword] = useState('');
   const [fullName, setFullName] = useState('');
   const [error, setError] = useState<string | null>(null);
-  const [mode, setMode] = useState<'login' | 'reset'>('login');
-  const [resetEmail, setResetEmail] = useState('');
-  const [resetError, setResetError] = useState<string | null>(null);
-  const [resetSuccess, setResetSuccess] = useState<string | null>(null);
-  const [resetSubmitting, setResetSubmitting] = useState(false);
 
   const isSubmitDisabled = useMemo(
     () => loading || email.trim().length === 0 || password.trim().length === 0,
