@@ -38,6 +38,7 @@ const MAPPING = {
     'lock.fill': 'lock',
     'key.fill': 'vpn-key',
     'a.login': 'login',
+    applelogo: 'apple',
 } as unknown as IconMapping;
 
 /**
