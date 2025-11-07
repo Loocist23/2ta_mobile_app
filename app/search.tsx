@@ -29,6 +29,25 @@ function extractMinSalary(salary: string) {
   return Number(normalized);
 }
 
+const CONTRACTS: ('CDI' | 'CDD' | 'Freelance' | 'Stage')[] = ['CDI', 'CDD', 'Freelance', 'Stage'];
+const REMOTE_OPTIONS = ['Tous', 'Télétravail', 'Hybride', 'Présentiel'] as const;
+const SALARY_OPTIONS = ['Tous', '≥ 50 k€', '≥ 60 k€', '≥ 70 k€'] as const;
+const SORT_OPTIONS = [
+  { value: 'recent', label: 'Plus récentes' },
+  { value: 'salary_desc', label: 'Salaire décroissant' },
+  { value: 'company', label: 'A → Z entreprise' },
+] as const;
+
+type SortOption = (typeof SORT_OPTIONS)[number]['value'];
+function extractMinSalary(salary: string) {
+  const match = salary.match(/(\d+[\s\u00A0]?[\d]*)/);
+  if (!match) {
+    return 0;
+  }
+  const normalized = match[1].replace(/\s|\u00A0/g, '');
+  return Number(normalized);
+}
+
 export default function SearchScreen() {
   const router = useRouter();
   const params = useLocalSearchParams<{
