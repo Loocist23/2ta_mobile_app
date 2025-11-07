@@ -1,34 +1,29 @@
 import Constants from 'expo-constants';
-import React from 'react';
-import {
-  Alert,
-  Pressable,
-  ScrollView,
-  StyleSheet,
-  Switch,
-  Text,
-  View,
-} from 'react-native';
+import { useRouter } from 'expo-router';
+import React, { useState } from 'react';
+import { Pressable, ScrollView, StyleSheet, Switch, Text, View } from 'react-native';
 
-import { IconSymbol } from '@/components/ui/icon-symbol';
 import { JobCard } from '@/components/job-card';
+import { ConfirmationDialog } from '@/components/ui/confirmation-dialog';
+import { IconSymbol } from '@/components/ui/icon-symbol';
+import { companies } from '@/constants/companies';
 import { Colors } from '@/constants/theme';
-import {
-  getJobById,
-  isJobFavorite,
-  useAuth,
-} from '@/context/AuthContext';
+import { getJobById, isJobFavorite, useAuth } from '@/context/AuthContext';
+import { useToast } from '@/context/ToastContext';
 
 export default function ProfileScreen() {
+  const router = useRouter();
   const {
     user,
     toggleFavorite,
-    updateSettings,
     toggleAlertActivation,
+    updateSettings,
     signOut,
     deleteAccount,
-    createPassword,
   } = useAuth();
+  const { showToast } = useToast();
+  const [pendingAction, setPendingAction] = useState<'signOut' | 'deleteAccount' | null>(null);
+  const [dialogBusy, setDialogBusy] = useState(false);
 
   if (!user) {
     return null;
@@ -37,30 +32,57 @@ export default function ProfileScreen() {
   const appVersion = Constants.expoConfig?.version ?? '1.0.0';
 
   const handleSignOut = () => {
-    Alert.alert('Déconnexion', 'Êtes-vous sûr de vouloir vous déconnecter ?', [
-      { text: 'Annuler', style: 'cancel' },
-      { text: 'Me déconnecter', style: 'destructive', onPress: () => signOut() },
-    ]);
+    setPendingAction('signOut');
   };
 
   const handleDeleteAccount = () => {
-    Alert.alert(
-      'Supprimer mon compte',
-      'Cette action est définitive. Toutes vos données et vos candidatures seront supprimées.',
-      [
-        { text: 'Annuler', style: 'cancel' },
-        {
-          text: 'Supprimer',
-          style: 'destructive',
-          onPress: () => deleteAccount(),
-        },
-      ]
-    );
+    setPendingAction('deleteAccount');
   };
+
+  const closeDialog = () => {
+    if (dialogBusy) {
+      return;
+    }
+
+    setPendingAction(null);
+  };
+
+  const handleConfirmAction = async () => {
+    if (!pendingAction) {
+      return;
+    }
+
+    try {
+      setDialogBusy(true);
+
+      if (pendingAction === 'signOut') {
+        await signOut();
+        showToast({ message: 'Déconnexion effectuée.', type: 'success' });
+      } else {
+        await deleteAccount();
+      }
+
+      router.replace('/login');
+    } finally {
+      setDialogBusy(false);
+      setPendingAction(null);
+    }
+  };
+
+  const isDeleteAction = pendingAction === 'deleteAccount';
+  const dialogTitle = isDeleteAction ? 'Supprimer mon compte' : 'Déconnexion';
+  const dialogDescription = isDeleteAction
+    ? 'Cette action est définitive. Toutes vos données et vos candidatures seront supprimées.'
+    : 'Vous serez déconnecté de votre session actuelle.';
+  const dialogConfirmLabel = isDeleteAction ? 'Supprimer' : 'Me déconnecter';
 
   const favorites = user.favorites
     .map((jobId) => getJobById(jobId))
     .filter((job): job is NonNullable<ReturnType<typeof getJobById>> => Boolean(job));
+
+  const followedCompanies = companies.filter((company) =>
+    user.followedCompanies.includes(company.id)
+  );
 
   return (
     <ScrollView style={styles.container} contentContainerStyle={styles.content}>
@@ -72,18 +94,29 @@ export default function ProfileScreen() {
           <Text style={styles.name}>{user.name}</Text>
           <Text style={styles.role}>{user.title}</Text>
           <Text style={styles.location}>{user.location}</Text>
+          {user.phone && <Text style={styles.location}>{user.phone}</Text>}
         </View>
-        <View style={styles.primaryBadge}>
-          <IconSymbol name="checkmark.seal.fill" size={18} color="#fff" />
-          <Text style={styles.primaryBadgeText}>Profil vérifié</Text>
-        </View>
+        <Pressable
+          accessibilityRole="button"
+          onPress={() => router.push('/(tabs)/profile/edit-profile')}
+          style={({ pressed }) => [styles.primaryBadge, pressed && styles.pressed]}>
+          <IconSymbol name="pencil" size={18} color="#fff" />
+          <Text style={styles.primaryBadgeText}>Modifier</Text>
+        </Pressable>
       </View>
+
+      {user.bio && (
+        <View style={styles.section}>
+          <Text style={styles.sectionTitle}>À propos</Text>
+          <Text style={styles.bio}>{user.bio}</Text>
+        </View>
+      )}
 
       <View style={styles.section}>
         <View style={styles.sectionHeader}>
           <Text style={styles.sectionTitle}>Mes CV & documents</Text>
           <Pressable
-            onPress={() => Alert.alert('Gérer mes CV', 'Ajoutez, remplacez ou supprimez vos CV depuis le site HelloWork.')}
+            onPress={() => router.push('/(tabs)/profile/documents')}
             style={({ pressed }) => [styles.linkButton, pressed && styles.pressed]}
             accessibilityRole="button">
             <Text style={styles.linkButtonText}>Gérer</Text>
@@ -91,7 +124,11 @@ export default function ProfileScreen() {
         </View>
         <View style={styles.cvList}>
           {user.cvs.map((cv) => (
-            <View key={cv.id} style={styles.cvCard}>
+            <Pressable
+              key={cv.id}
+              accessibilityRole="button"
+              onPress={() => router.push('/(tabs)/profile/documents')}
+              style={({ pressed }) => [styles.cvCard, pressed && styles.pressed]}>
               <View style={styles.cvIcon}>
                 <IconSymbol name="doc.text.fill" size={22} color={Colors.light.tint} />
               </View>
@@ -100,26 +137,17 @@ export default function ProfileScreen() {
                 <Text style={styles.cvMeta}>{cv.updatedAt}</Text>
               </View>
               {cv.isPrimary && <Text style={styles.cvBadge}>CV principal</Text>}
-            </View>
+            </Pressable>
           ))}
-        </View>
-      </View>
-
-      <View style={styles.section}>
-        <Text style={styles.sectionTitle}>Mes informations</Text>
-        <View style={styles.infoCard}>
-          <View style={styles.infoRow}>
-            <IconSymbol name="envelope.fill" size={20} color={Colors.light.tint} />
-            <Text style={styles.infoText}>{user.email}</Text>
-          </View>
-          <View style={styles.infoRow}>
-            <IconSymbol name="briefcase.fill" size={20} color={Colors.light.tint} />
-            <Text style={styles.infoText}>{user.title}</Text>
-          </View>
-          <View style={styles.infoRow}>
-            <IconSymbol name="globe.europe.africa.fill" size={20} color={Colors.light.tint} />
-            <Text style={styles.infoText}>{user.location}</Text>
-          </View>
+          {user.cvs.length === 0 && (
+            <View style={styles.emptyCard}>
+              <IconSymbol name="doc.badge.plus" size={24} color={Colors.light.tint} />
+              <Text style={styles.emptyCardTitle}>Ajoutez votre premier CV</Text>
+              <Text style={styles.emptyCardSubtitle}>
+                Importez vos documents pour candidater en un clic.
+              </Text>
+            </View>
+          )}
         </View>
       </View>
 
@@ -127,13 +155,24 @@ export default function ProfileScreen() {
         <View style={styles.sectionHeader}>
           <Text style={styles.sectionTitle}>Mes alertes</Text>
           <Pressable
-            onPress={() => Alert.alert('Créer une alerte', 'Paramétrez de nouvelles alertes depuis la page Offres.')}>
+            onPress={() => router.push('/(tabs)/profile/alerts')}
+            style={({ pressed }) => [styles.linkButton, pressed && styles.pressed]}
+            accessibilityRole="button">
             <Text style={styles.linkButtonText}>Nouvelle alerte</Text>
           </Pressable>
         </View>
         <View style={styles.alertList}>
           {user.alerts.map((alert) => (
-            <View key={alert.id} style={styles.alertCard}>
+            <Pressable
+              key={alert.id}
+              onPress={() =>
+                router.push({
+                  pathname: '/search',
+                  params: { alertId: alert.id },
+                })
+              }
+              style={({ pressed }) => [styles.alertCard, pressed && styles.pressed]}
+              accessibilityRole="button">
               <View style={styles.alertHeader}>
                 <View style={styles.alertIcon}>
                   <IconSymbol name="bell.badge.fill" size={20} color={Colors.light.tint} />
@@ -151,17 +190,29 @@ export default function ProfileScreen() {
               </View>
               <Text style={styles.alertKeywords}>{alert.keywords.join(' · ')}</Text>
               <Text style={styles.alertFooter}>Dernière alerte : {alert.lastRun}</Text>
-            </View>
+            </Pressable>
           ))}
+          {user.alerts.length === 0 && (
+            <View style={styles.emptyCard}>
+              <IconSymbol name="bell.badge.fill" size={28} color={Colors.light.tint} />
+              <Text style={styles.emptyCardTitle}>Créez votre première alerte</Text>
+              <Text style={styles.emptyCardSubtitle}>
+                Recevez les offres adaptées dès leur publication.
+              </Text>
+            </View>
+          )}
         </View>
       </View>
 
       <View style={styles.section}>
         <Text style={styles.sectionTitle}>Mes favoris</Text>
         {favorites.length === 0 ? (
-          <View style={styles.emptyFavorites}>
+          <View style={styles.emptyCard}>
             <IconSymbol name="bookmark.fill" size={24} color={Colors.light.tint} />
-            <Text style={styles.emptyFavoritesText}>Ajoutez des offres à vos favoris depuis la page Accueil.</Text>
+            <Text style={styles.emptyCardTitle}>Ajoutez des offres à vos favoris</Text>
+            <Text style={styles.emptyCardSubtitle}>
+              Retrouvez-les ici pour candidater rapidement.
+            </Text>
           </View>
         ) : (
           <View style={styles.favoriteList}>
@@ -171,7 +222,40 @@ export default function ProfileScreen() {
                 job={job}
                 isFavorite={isJobFavorite(job.id, user.favorites)}
                 onToggleFavorite={() => toggleFavorite(job.id)}
+                onPress={() => router.push({ pathname: '/jobs/[id]', params: { id: job.id } })}
               />
+            ))}
+          </View>
+        )}
+      </View>
+
+      <View style={styles.section}>
+        <Text style={styles.sectionTitle}>Entreprises suivies</Text>
+        {followedCompanies.length === 0 ? (
+          <View style={styles.emptyCard}>
+            <IconSymbol name="person.2.fill" size={24} color={Colors.light.tint} />
+            <Text style={styles.emptyCardTitle}>Suivez vos entreprises préférées</Text>
+            <Text style={styles.emptyCardSubtitle}>
+              Depuis une fiche entreprise, suivez-la pour être alerté des nouvelles offres.
+            </Text>
+          </View>
+        ) : (
+          <View style={styles.companyList}>
+            {followedCompanies.map((company) => (
+              <Pressable
+                key={company.id}
+                style={({ pressed }) => [styles.companyCard, pressed && styles.pressed]}
+                onPress={() => router.push({ pathname: '/companies/[id]', params: { id: company.id } })}
+                accessibilityRole="button">
+                <View style={styles.companyLogo}>
+                  <Text style={styles.companyLogoText}>{company.name.slice(0, 1)}</Text>
+                </View>
+                <View style={styles.companyText}>
+                  <Text style={styles.companyName}>{company.name}</Text>
+                  <Text style={styles.companyMeta}>{company.location}</Text>
+                </View>
+                <IconSymbol name="chevron.right" size={18} color="#9AA2AA" />
+              </Pressable>
             ))}
           </View>
         )}
@@ -231,36 +315,11 @@ export default function ProfileScreen() {
             />
           </View>
         </View>
-
-        <View style={styles.linksCard}>
-          <ProfileLink label="CGU" onPress={() => Alert.alert('CGU', 'Consultez les CGU sur le site HelloWork.')} />
-          <ProfileLink
-            label="Politique de confidentialité"
-            onPress={() => Alert.alert('Politique de confidentialité', 'Retrouvez toutes les informations sur notre site.')} />
-          <ProfileLink
-            label="Accessibilité"
-            onPress={() => Alert.alert('Accessibilité', 'Découvrez nos engagements en matière d’accessibilité numérique.')} />
-          <ProfileLink
-            label="FAQ"
-            onPress={() => Alert.alert('FAQ', 'Trouvez des réponses à vos questions les plus fréquentes.')} />
-          <ProfileLink
-            label="Informations légales"
-            onPress={() => Alert.alert('Informations légales', 'Mentions légales disponibles sur le site HelloWork.')} />
-          <ProfileLink
-            label="Gestion des alertes email"
-            onPress={() => Alert.alert('Alertes email', 'Configurez le contenu de vos emails depuis votre espace web.')} />
-          <ProfileLink
-            label="Signaler un problème"
-            onPress={() => Alert.alert('Signaler un problème', 'Envoyez-nous un email à support@hellowork.com.')} />
-          <ProfileLink
-            label="Donner mon avis sur l'app"
-            onPress={() => Alert.alert('Avis', 'Merci ! Votre retour nous aide à améliorer l’application.')} />
-        </View>
       </View>
 
       <View style={styles.section}>
         <Pressable
-          onPress={createPassword}
+          onPress={() => router.push('/(tabs)/profile/security')}
           style={({ pressed }) => [styles.fullButton, pressed && styles.pressed]}
           accessibilityRole="button">
           <IconSymbol name={user.hasPassword ? 'lock.fill' : 'key.fill'} size={20} color="#fff" />
@@ -282,24 +341,18 @@ export default function ProfileScreen() {
         </Pressable>
         <Text style={styles.version}>Version {appVersion}</Text>
       </View>
+
+      <ConfirmationDialog
+        visible={pendingAction !== null}
+        title={dialogTitle}
+        description={dialogDescription}
+        confirmLabel={dialogConfirmLabel}
+        destructive={isDeleteAction}
+        loading={dialogBusy}
+        onCancel={closeDialog}
+        onConfirm={handleConfirmAction}
+      />
     </ScrollView>
-  );
-}
-
-type ProfileLinkProps = {
-  label: string;
-  onPress: () => void;
-};
-
-function ProfileLink({ label, onPress }: ProfileLinkProps) {
-  return (
-    <Pressable
-      onPress={onPress}
-      style={({ pressed }) => [styles.linkRow, pressed && styles.pressed]}
-      accessibilityRole="button">
-      <Text style={styles.linkLabel}>{label}</Text>
-      <IconSymbol name="chevron.right" size={18} color="#9AA2AA" />
-    </Pressable>
   );
 }
 
@@ -351,14 +404,22 @@ const styles = StyleSheet.create({
     fontSize: 14,
     color: '#77808A',
   },
+  bio: {
+    backgroundColor: '#fff',
+    padding: 18,
+    borderRadius: 18,
+    fontSize: 15,
+    color: '#49525A',
+    lineHeight: 22,
+  },
   primaryBadge: {
     flexDirection: 'row',
     alignItems: 'center',
     gap: 6,
     backgroundColor: Colors.light.tint,
-    paddingHorizontal: 12,
-    paddingVertical: 6,
-    borderRadius: 14,
+    paddingHorizontal: 14,
+    paddingVertical: 8,
+    borderRadius: 16,
   },
   primaryBadgeText: {
     color: '#fff',
@@ -400,10 +461,10 @@ const styles = StyleSheet.create({
     borderRadius: 16,
   },
   cvIcon: {
-    width: 48,
-    height: 48,
-    borderRadius: 12,
-    backgroundColor: '#EDF4FF',
+    width: 44,
+    height: 44,
+    borderRadius: 22,
+    backgroundColor: '#EEF4FF',
     alignItems: 'center',
     justifyContent: 'center',
   },
@@ -412,37 +473,22 @@ const styles = StyleSheet.create({
     gap: 4,
   },
   cvName: {
-    fontSize: 16,
+    fontSize: 15,
     fontWeight: '600',
     color: Colors.light.text,
   },
   cvMeta: {
     fontSize: 13,
-    color: '#5B6670',
+    color: '#6B7480',
   },
   cvBadge: {
-    fontSize: 12,
-    fontWeight: '600',
+    backgroundColor: '#E6F2FF',
     color: Colors.light.tint,
-    backgroundColor: '#E1EEFF',
+    fontWeight: '600',
+    fontSize: 12,
     paddingHorizontal: 10,
     paddingVertical: 4,
-    borderRadius: 12,
-  },
-  infoCard: {
-    gap: 12,
-    backgroundColor: '#fff',
-    padding: 18,
-    borderRadius: 18,
-  },
-  infoRow: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 12,
-  },
-  infoText: {
-    fontSize: 15,
-    color: '#4A545E',
+    borderRadius: 999,
   },
   alertList: {
     gap: 12,
@@ -450,8 +496,8 @@ const styles = StyleSheet.create({
   alertCard: {
     backgroundColor: '#fff',
     padding: 16,
-    borderRadius: 16,
-    gap: 10,
+    borderRadius: 18,
+    gap: 12,
   },
   alertHeader: {
     flexDirection: 'row',
@@ -461,8 +507,8 @@ const styles = StyleSheet.create({
   alertIcon: {
     width: 44,
     height: 44,
-    borderRadius: 12,
-    backgroundColor: '#EEF4FF',
+    borderRadius: 22,
+    backgroundColor: '#EDF4FF',
     alignItems: 'center',
     justifyContent: 'center',
   },
@@ -477,31 +523,74 @@ const styles = StyleSheet.create({
   },
   alertMeta: {
     fontSize: 13,
-    color: '#5B6670',
+    color: '#6B7480',
   },
   alertKeywords: {
     fontSize: 13,
-    color: '#2F6DE0',
-    fontWeight: '500',
+    color: '#4F5962',
   },
   alertFooter: {
     fontSize: 12,
-    color: '#889097',
+    color: '#8C97A1',
   },
   favoriteList: {
     gap: 16,
   },
-  emptyFavorites: {
+  emptyCard: {
     backgroundColor: '#fff',
-    padding: 20,
-    borderRadius: 18,
+    padding: 24,
+    borderRadius: 20,
     alignItems: 'center',
-    gap: 8,
+    gap: 12,
   },
-  emptyFavoritesText: {
+  emptyCardTitle: {
+    fontSize: 16,
+    fontWeight: '600',
+    color: Colors.light.text,
     textAlign: 'center',
+  },
+  emptyCardSubtitle: {
     fontSize: 14,
-    color: '#5B6670',
+    color: '#6B7480',
+    textAlign: 'center',
+    lineHeight: 20,
+  },
+  companyList: {
+    gap: 12,
+  },
+  companyCard: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 12,
+    backgroundColor: '#fff',
+    padding: 16,
+    borderRadius: 16,
+  },
+  companyLogo: {
+    width: 42,
+    height: 42,
+    borderRadius: 21,
+    backgroundColor: '#E6F0FF',
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  companyLogoText: {
+    fontSize: 18,
+    fontWeight: '700',
+    color: Colors.light.tint,
+  },
+  companyText: {
+    flex: 1,
+    gap: 4,
+  },
+  companyName: {
+    fontSize: 16,
+    fontWeight: '600',
+    color: Colors.light.text,
+  },
+  companyMeta: {
+    fontSize: 13,
+    color: '#6B7480',
   },
   settingsCard: {
     backgroundColor: '#fff',
@@ -511,76 +600,64 @@ const styles = StyleSheet.create({
   },
   settingRow: {
     flexDirection: 'row',
-    justifyContent: 'space-between',
     alignItems: 'center',
+    justifyContent: 'space-between',
+    gap: 12,
   },
   settingLabel: {
     flexDirection: 'row',
     alignItems: 'center',
-    gap: 12,
+    gap: 10,
   },
   settingTitle: {
     fontSize: 15,
-    color: Colors.light.text,
     fontWeight: '600',
+    color: Colors.light.text,
   },
   settingValue: {
     fontSize: 14,
-    color: '#5B6670',
-  },
-  linksCard: {
-    backgroundColor: '#fff',
-    borderRadius: 18,
-    padding: 12,
-  },
-  linkRow: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    alignItems: 'center',
-    paddingVertical: 14,
-    paddingHorizontal: 8,
-  },
-  linkLabel: {
-    fontSize: 15,
-    color: Colors.light.text,
+    color: '#4F5962',
+    fontWeight: '600',
   },
   fullButton: {
     flexDirection: 'row',
-    gap: 12,
     alignItems: 'center',
     justifyContent: 'center',
+    gap: 8,
     backgroundColor: Colors.light.tint,
     paddingVertical: 14,
     borderRadius: 16,
   },
   fullButtonText: {
     color: '#fff',
-    fontWeight: '600',
     fontSize: 15,
+    fontWeight: '600',
   },
   secondaryFullButton: {
-    alignItems: 'center',
+    backgroundColor: '#fff',
     paddingVertical: 14,
     borderRadius: 16,
-    backgroundColor: '#E9EDF3',
+    alignItems: 'center',
   },
   secondaryFullButtonText: {
     color: Colors.light.tint,
+    fontSize: 15,
     fontWeight: '600',
   },
   dangerButton: {
-    alignItems: 'center',
+    backgroundColor: '#FFE6E6',
     paddingVertical: 14,
     borderRadius: 16,
-    backgroundColor: '#FFE6E6',
+    alignItems: 'center',
   },
   dangerButtonText: {
-    color: '#D64545',
+    color: '#D13C3C',
+    fontSize: 15,
     fontWeight: '600',
   },
   version: {
     textAlign: 'center',
-    color: '#7B848E',
+    color: '#9299A3',
     fontSize: 13,
   },
   pressed: {
