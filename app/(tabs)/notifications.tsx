@@ -1,6 +1,14 @@
 import { useRouter } from 'expo-router';
 import React, { useMemo, useState } from 'react';
-import { Alert, FlatList, Pressable, StyleSheet, Text, View } from 'react-native';
+import {
+  Alert,
+  FlatList,
+  Pressable,
+  StyleSheet,
+  Text,
+  View,
+  type GestureResponderEvent,
+} from 'react-native';
 
 import { IconSymbol } from '@/components/ui/icon-symbol';
 import { Colors } from '@/constants/theme';
@@ -133,7 +141,10 @@ export default function NotificationsScreen() {
               </View>
               <Pressable
                 accessibilityRole="button"
-                onPress={() => handleDelete(item.id)}
+                onPress={(event: GestureResponderEvent) => {
+                  event.stopPropagation();
+                  handleDelete(item.id);
+                }}
                 style={({ pressed }) => [styles.deleteButton, pressed && styles.pressed]}
                 hitSlop={8}>
                 <IconSymbol name="trash" size={18} color="#D13C3C" />

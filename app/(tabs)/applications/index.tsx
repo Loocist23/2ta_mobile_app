@@ -42,6 +42,11 @@ export default function ApplicationsScreen() {
   };
 
   const handleStatusAdvance = (applicationId: string, currentStatus: string) => {
+    if (currentStatus === 'Proposition reçue') {
+      Alert.alert('Statut à jour', 'Cette candidature est déjà au dernier stade.');
+      return;
+    }
+
     const nextStatus =
       currentStatus === 'Candidature envoyée'
         ? "En cours d'étude"
@@ -145,10 +150,21 @@ export default function ApplicationsScreen() {
                   <Text style={styles.secondaryButtonText}>Relancer</Text>
                 </Pressable>
                 <Pressable
-                  style={({ pressed }) => [styles.secondaryButton, pressed && styles.pressed]}
+                  style={({ pressed }) => [
+                    styles.secondaryButton,
+                    pressed && application.status !== 'Proposition reçue' && styles.pressed,
+                    application.status === 'Proposition reçue' && styles.secondaryButtonDisabled,
+                  ]}
                   onPress={() => handleStatusAdvance(application.id, application.status)}
-                  accessibilityRole="button">
-                  <Text style={styles.secondaryButtonText}>Avancer le statut</Text>
+                  accessibilityRole="button"
+                  disabled={application.status === 'Proposition reçue'}>
+                  <Text
+                    style={[
+                      styles.secondaryButtonText,
+                      application.status === 'Proposition reçue' && styles.secondaryButtonTextDisabled,
+                    ]}>
+                    Avancer le statut
+                  </Text>
                 </Pressable>
                 <Pressable
                   style={({ pressed }) => [styles.primaryButton, pressed && styles.pressed]}
@@ -332,9 +348,15 @@ const styles = StyleSheet.create({
     paddingVertical: 10,
     borderRadius: 12,
   },
+  secondaryButtonDisabled: {
+    backgroundColor: '#E1E5EC',
+  },
   secondaryButtonText: {
     color: Colors.light.tint,
     fontWeight: '600',
+  },
+  secondaryButtonTextDisabled: {
+    color: '#9AA2AA',
   },
   primaryButton: {
     backgroundColor: Colors.light.tint,
