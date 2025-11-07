@@ -202,12 +202,20 @@ export default function SearchScreen() {
     router.replace({ pathname: '/search', params: { alertId: id } });
   };
 
+  const handleGoBack = () => {
+    if (router.canGoBack()) {
+      router.back();
+    } else {
+      router.replace('/(tabs)/profile');
+    }
+  };
+
   return (
     <View style={styles.container}>
       <View style={styles.header}>
         <Pressable
           accessibilityRole="button"
-          onPress={() => router.back()}
+          onPress={handleGoBack}
           style={({ pressed }) => [styles.backButton, pressed && styles.pressed]}>
           <IconSymbol name="chevron.left" size={20} color={Colors.light.tint} />
         </Pressable>
