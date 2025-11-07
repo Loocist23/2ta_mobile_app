@@ -1,18 +1,11 @@
 import { useLocalSearchParams, useRouter } from 'expo-router';
 import React, { useMemo, useState } from 'react';
-import {
-  Alert,
-  Pressable,
-  ScrollView,
-  StyleSheet,
-  Text,
-  TextInput,
-  View,
-} from 'react-native';
+import { Pressable, ScrollView, StyleSheet, Text, TextInput, View } from 'react-native';
 
 import { IconSymbol } from '@/components/ui/icon-symbol';
 import { Colors } from '@/constants/theme';
 import { useAuth } from '@/context/AuthContext';
+import { useToast } from '@/context/ToastContext';
 
 const STATUSES: ('Candidature envoyée' | "En cours d'étude" | 'Entretien planifié' | 'Proposition reçue')[] = [
   'Candidature envoyée',
@@ -25,6 +18,7 @@ export default function ApplicationDetailsScreen() {
   const router = useRouter();
   const { id } = useLocalSearchParams<{ id?: string }>();
   const { user, updateApplicationStatus, updateApplication, addApplicationNote } = useAuth();
+  const { showToast } = useToast();
 
   const application = useMemo(() => {
     if (!user || !id || typeof id !== 'string') {
@@ -60,7 +54,10 @@ export default function ApplicationDetailsScreen() {
       setNote('');
     }
 
-    Alert.alert('Candidature mise à jour', 'Les informations ont bien été enregistrées.');
+    showToast({
+      message: 'Candidature mise à jour.',
+      type: 'success',
+    });
   };
 
   return (

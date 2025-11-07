@@ -1,21 +1,15 @@
 import Constants from 'expo-constants';
 import { useRouter } from 'expo-router';
-import React from 'react';
-import {
-  Alert,
-  Pressable,
-  ScrollView,
-  StyleSheet,
-  Switch,
-  Text,
-  View,
-} from 'react-native';
+import React, { useState } from 'react';
+import { Pressable, ScrollView, StyleSheet, Switch, Text, View } from 'react-native';
 
 import { JobCard } from '@/components/job-card';
+import { ConfirmationDialog } from '@/components/ui/confirmation-dialog';
 import { IconSymbol } from '@/components/ui/icon-symbol';
 import { companies } from '@/constants/companies';
 import { Colors } from '@/constants/theme';
 import { getJobById, isJobFavorite, useAuth } from '@/context/AuthContext';
+import { useToast } from '@/context/ToastContext';
 
 export default function ProfileScreen() {
   const router = useRouter();
@@ -27,6 +21,9 @@ export default function ProfileScreen() {
     signOut,
     deleteAccount,
   } = useAuth();
+  const { showToast } = useToast();
+  const [pendingAction, setPendingAction] = useState<'signOut' | 'deleteAccount' | null>(null);
+  const [dialogBusy, setDialogBusy] = useState(false);
 
   if (!user) {
     return null;
@@ -35,26 +32,49 @@ export default function ProfileScreen() {
   const appVersion = Constants.expoConfig?.version ?? '1.0.0';
 
   const handleSignOut = () => {
-    Alert.alert('Déconnexion', 'Êtes-vous sûr de vouloir vous déconnecter ?', [
-      { text: 'Annuler', style: 'cancel' },
-      { text: 'Me déconnecter', style: 'destructive', onPress: () => signOut() },
-    ]);
+    setPendingAction('signOut');
   };
 
   const handleDeleteAccount = () => {
-    Alert.alert(
-      'Supprimer mon compte',
-      'Cette action est définitive. Toutes vos données et vos candidatures seront supprimées.',
-      [
-        { text: 'Annuler', style: 'cancel' },
-        {
-          text: 'Supprimer',
-          style: 'destructive',
-          onPress: () => deleteAccount(),
-        },
-      ]
-    );
+    setPendingAction('deleteAccount');
   };
+
+  const closeDialog = () => {
+    if (dialogBusy) {
+      return;
+    }
+
+    setPendingAction(null);
+  };
+
+  const handleConfirmAction = async () => {
+    if (!pendingAction) {
+      return;
+    }
+
+    try {
+      setDialogBusy(true);
+
+      if (pendingAction === 'signOut') {
+        await signOut();
+        showToast({ message: 'Déconnexion effectuée.', type: 'success' });
+      } else {
+        await deleteAccount();
+      }
+
+      router.replace('/login');
+    } finally {
+      setDialogBusy(false);
+      setPendingAction(null);
+    }
+  };
+
+  const isDeleteAction = pendingAction === 'deleteAccount';
+  const dialogTitle = isDeleteAction ? 'Supprimer mon compte' : 'Déconnexion';
+  const dialogDescription = isDeleteAction
+    ? 'Cette action est définitive. Toutes vos données et vos candidatures seront supprimées.'
+    : 'Vous serez déconnecté de votre session actuelle.';
+  const dialogConfirmLabel = isDeleteAction ? 'Supprimer' : 'Me déconnecter';
 
   const favorites = user.favorites
     .map((jobId) => getJobById(jobId))
@@ -321,6 +341,17 @@ export default function ProfileScreen() {
         </Pressable>
         <Text style={styles.version}>Version {appVersion}</Text>
       </View>
+
+      <ConfirmationDialog
+        visible={pendingAction !== null}
+        title={dialogTitle}
+        description={dialogDescription}
+        confirmLabel={dialogConfirmLabel}
+        destructive={isDeleteAction}
+        loading={dialogBusy}
+        onCancel={closeDialog}
+        onConfirm={handleConfirmAction}
+      />
     </ScrollView>
   );
 }

@@ -1,15 +1,27 @@
-import React, { useState } from 'react';
-import { Alert, Pressable, ScrollView, StyleSheet, Text, TextInput, View } from 'react-native';
+import React, { useMemo, useState } from 'react';
+import { Pressable, ScrollView, StyleSheet, Text, TextInput, View } from 'react-native';
 
+import { ConfirmationDialog } from '@/components/ui/confirmation-dialog';
 import { IconSymbol } from '@/components/ui/icon-symbol';
 import { Colors } from '@/constants/theme';
 import { useAuth } from '@/context/AuthContext';
+import { useToast } from '@/context/ToastContext';
 
 export default function DocumentsScreen() {
   const { user, addCv, renameCv, removeCv, setPrimaryCv } = useAuth();
+  const { showToast } = useToast();
   const [newName, setNewName] = useState('');
   const [editingId, setEditingId] = useState<string | null>(null);
   const [editingValue, setEditingValue] = useState('');
+  const [cvToDelete, setCvToDelete] = useState<string | null>(null);
+
+  const pendingCv = useMemo(() => {
+    if (!cvToDelete || !user) {
+      return null;
+    }
+
+    return user.cvs.find((cv) => cv.id === cvToDelete) ?? null;
+  }, [cvToDelete, user]);
 
   if (!user) {
     return null;
@@ -18,35 +30,42 @@ export default function DocumentsScreen() {
   const handleAdd = () => {
     const value = newName.trim();
     if (!value) {
-      Alert.alert('Nom requis', 'Veuillez nommer votre document.');
+      showToast({ message: 'Veuillez nommer votre document.', type: 'error' });
       return;
     }
 
     addCv(value);
     setNewName('');
+    showToast({ message: 'Document ajouté.', type: 'success' });
   };
 
   const handleRename = (id: string) => {
     const value = editingValue.trim();
     if (!value) {
-      Alert.alert('Nom requis', 'Le nom du document ne peut pas être vide.');
+      showToast({ message: 'Le nom du document ne peut pas être vide.', type: 'error' });
       return;
     }
 
     renameCv(id, value);
     setEditingId(null);
     setEditingValue('');
+    showToast({ message: 'Document renommé.', type: 'success' });
   };
 
-  const handleDelete = (id: string) => {
-    Alert.alert('Supprimer le document', 'Voulez-vous vraiment retirer ce CV ?', [
-      { text: 'Annuler', style: 'cancel' },
-      {
-        text: 'Supprimer',
-        style: 'destructive',
-        onPress: () => removeCv(id),
-      },
-    ]);
+  const handleDeleteRequest = (id: string) => {
+    setCvToDelete(id);
+  };
+
+  const closeDialog = () => setCvToDelete(null);
+
+  const confirmDelete = () => {
+    if (!cvToDelete) {
+      return;
+    }
+
+    removeCv(cvToDelete);
+    showToast({ message: 'Document supprimé.', type: 'success' });
+    setCvToDelete(null);
   };
 
   return (
@@ -116,7 +135,7 @@ export default function DocumentsScreen() {
                 </Pressable>
 
                 <Pressable
-                  onPress={() => handleDelete(cv.id)}
+                  onPress={() => handleDeleteRequest(cv.id)}
                   style={({ pressed }) => [styles.dangerAction, pressed && styles.pressed]}
                   accessibilityRole="button">
                   <IconSymbol name="trash" size={16} color="#D13C3C" />
@@ -155,6 +174,19 @@ export default function DocumentsScreen() {
           <Text style={styles.addButtonText}>Ajouter à ma bibliothèque</Text>
         </Pressable>
       </View>
+      <ConfirmationDialog
+        visible={cvToDelete !== null}
+        title="Supprimer le document"
+        description={
+          pendingCv
+            ? `Voulez-vous vraiment retirer « ${pendingCv.name} » ?`
+            : 'Voulez-vous vraiment retirer ce document ?'
+        }
+        confirmLabel="Supprimer"
+        destructive
+        onCancel={closeDialog}
+        onConfirm={confirmDelete}
+      />
     </ScrollView>
   );
 }

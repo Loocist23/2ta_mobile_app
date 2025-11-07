@@ -1,6 +1,6 @@
 import { useRouter } from 'expo-router';
 import React, { useEffect, useMemo, useState } from 'react';
-import { Alert, Pressable, ScrollView, StyleSheet, Text, TextInput, View } from 'react-native';
+import { Pressable, ScrollView, StyleSheet, Text, TextInput, View } from 'react-native';
 
 import { IconSymbol } from '@/components/ui/icon-symbol';
 import { Colors } from '@/constants/theme';
@@ -90,31 +90,19 @@ export default function SecurityScreen() {
   const handleDeleteAccount = async () => {
     setDeleteError(null);
 
-    Alert.alert(
-      'Confirmation',
-      'Cette action est définitive. Vos candidatures, alertes et documents seront supprimés.',
-      [
-        { text: 'Annuler', style: 'cancel' },
-        {
-          text: 'Supprimer',
-          style: 'destructive',
-          onPress: async () => {
-            try {
-              setDeleting(true);
-              await deleteAccount();
-            } catch (error) {
-              if (error instanceof Error) {
-                setDeleteError(error.message);
-              } else {
-                setDeleteError('La suppression du compte a échoué.');
-              }
-            } finally {
-              setDeleting(false);
-            }
-          },
-        },
-      ]
-    );
+    try {
+      setDeleting(true);
+      await deleteAccount();
+      router.replace('/login');
+    } catch (error) {
+      if (error instanceof Error) {
+        setDeleteError(error.message);
+      } else {
+        setDeleteError('La suppression du compte a échoué.');
+      }
+    } finally {
+      setDeleting(false);
+    }
   };
 
   return (

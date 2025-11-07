@@ -1,14 +1,6 @@
 import { useLocalSearchParams, useRouter } from 'expo-router';
 import React, { useMemo, useState } from 'react';
-import {
-  Alert,
-  FlatList,
-  Pressable,
-  StyleSheet,
-  Text,
-  TextInput,
-  View,
-} from 'react-native';
+import { FlatList, Pressable, StyleSheet, Text, TextInput, View } from 'react-native';
 
 import { JobCard } from '@/components/job-card';
 import { IconSymbol } from '@/components/ui/icon-symbol';
@@ -16,6 +8,26 @@ import { jobOffers } from '@/constants/jobs';
 import { Colors } from '@/constants/theme';
 import { useAuth } from '@/context/AuthContext';
 import { showApplicationFeedback } from '@/utils/feedback';
+import { useToast } from '@/context/ToastContext';
+
+const CONTRACTS: ('CDI' | 'CDD' | 'Freelance' | 'Stage')[] = ['CDI', 'CDD', 'Freelance', 'Stage'];
+const REMOTE_OPTIONS = ['Tous', 'Télétravail', 'Hybride', 'Présentiel'] as const;
+const SALARY_OPTIONS = ['Tous', '≥ 50 k€', '≥ 60 k€', '≥ 70 k€'] as const;
+const SORT_OPTIONS = [
+  { value: 'recent', label: 'Plus récentes' },
+  { value: 'salary_desc', label: 'Salaire décroissant' },
+  { value: 'company', label: 'A → Z entreprise' },
+] as const;
+
+type SortOption = (typeof SORT_OPTIONS)[number]['value'];
+function extractMinSalary(salary: string) {
+  const match = salary.match(/(\d+[\s\u00A0]?[\d]*)/);
+  if (!match) {
+    return 0;
+  }
+  const normalized = match[1].replace(/\s|\u00A0/g, '');
+  return Number(normalized);
+}
 
 const CONTRACTS: ('CDI' | 'CDD' | 'Freelance' | 'Stage')[] = ['CDI', 'CDD', 'Freelance', 'Stage'];
 const REMOTE_OPTIONS = ['Tous', 'Télétravail', 'Hybride', 'Présentiel'] as const;
@@ -44,6 +56,7 @@ export default function SearchScreen() {
     location?: string;
   }>();
   const { user, toggleFavorite, createAlert, updateAlert } = useAuth();
+  const { showToast } = useToast();
 
   const alert = useMemo(() => {
     if (!user || !params.alertId) {
@@ -167,7 +180,10 @@ export default function SearchScreen() {
         keywords: keywordsForAlert,
         location: location.trim() || 'Télétravail',
       });
-      Alert.alert('Alerte mise à jour', 'Votre alerte a été synchronisée avec ces filtres.');
+      showToast({
+        message: 'Alerte mise à jour avec vos filtres.',
+        type: 'success',
+      });
       return;
     }
 
@@ -179,17 +195,11 @@ export default function SearchScreen() {
       active: true,
     });
 
-    Alert.alert('Alerte créée', 'Nous vous avertirons dès que de nouvelles offres correspondent.', [
-      {
-        text: 'Voir les offres',
-        onPress: () => router.replace({ pathname: '/search', params: { alertId: id } }),
-      },
-      {
-        text: 'Gérer mes alertes',
-        onPress: () => router.replace('/(tabs)/profile/alerts'),
-      },
-      { text: 'Fermer', style: 'cancel' },
-    ]);
+    showToast({
+      message: 'Alerte créée. Nous vous préviendrons dès qu’une offre correspond.',
+      type: 'success',
+    });
+    router.replace({ pathname: '/search', params: { alertId: id } });
   };
 
   return (

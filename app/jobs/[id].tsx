@@ -1,23 +1,13 @@
 import { useLocalSearchParams, useRouter } from 'expo-router';
 import React, { useMemo, useState } from 'react';
-import {
-  Alert,
-  Modal,
-  Pressable,
-  ScrollView,
-  Share,
-  StyleSheet,
-  Switch,
-  Text,
-  TextInput,
-  View,
-} from 'react-native';
+import { Modal, Pressable, ScrollView, Share, StyleSheet, Switch, Text, TextInput, View } from 'react-native';
 
 import { IconSymbol } from '@/components/ui/icon-symbol';
 import { companies } from '@/constants/companies';
 import { jobOffers } from '@/constants/jobs';
 import { Colors } from '@/constants/theme';
 import { useAuth } from '@/context/AuthContext';
+import { useToast } from '@/context/ToastContext';
 
 function formatAppliedLabel(jobTitle: string) {
   const date = new Date();
@@ -37,6 +27,7 @@ export default function JobDetailsScreen() {
     followCompany,
     unfollowCompany,
   } = useAuth();
+  const { showToast } = useToast();
   const [showModal, setShowModal] = useState(false);
   const [selectedCvId, setSelectedCvId] = useState<string | null>(null);
   const [message, setMessage] = useState('');
@@ -91,7 +82,7 @@ export default function JobDetailsScreen() {
         title: job.title,
       });
     } catch {
-      Alert.alert('Partage impossible', "Le partage a échoué, réessayez plus tard.");
+      showToast({ message: 'Partage impossible, réessayez plus tard.', type: 'error' });
     }
   };
 
@@ -109,7 +100,7 @@ export default function JobDetailsScreen() {
 
   const handleSubmitApplication = () => {
     if (!selectedCvId) {
-      Alert.alert('CV requis', 'Sélectionnez le document à joindre à votre candidature.');
+      showToast({ message: 'Sélectionnez le document à joindre à votre candidature.', type: 'error' });
       return;
     }
 
@@ -134,7 +125,7 @@ export default function JobDetailsScreen() {
       notes,
     });
 
-    Alert.alert('Candidature envoyée', 'Votre candidature a été ajoutée à votre suivi.');
+    showToast({ message: 'Votre candidature a été ajoutée à votre suivi.', type: 'success' });
     setShowModal(false);
     setMessage('');
     setIncludeProfile(true);

@@ -1,24 +1,45 @@
 import { useRouter } from 'expo-router';
-import React from 'react';
-import { Alert, Pressable, ScrollView, StyleSheet, Switch, Text, View } from 'react-native';
+import React, { useMemo, useState } from 'react';
+import { Pressable, ScrollView, StyleSheet, Switch, Text, View } from 'react-native';
 
+import { ConfirmationDialog } from '@/components/ui/confirmation-dialog';
 import { IconSymbol } from '@/components/ui/icon-symbol';
 import { Colors } from '@/constants/theme';
 import { useAuth } from '@/context/AuthContext';
+import { useToast } from '@/context/ToastContext';
 
 export default function AlertsScreen() {
   const router = useRouter();
   const { user, toggleAlertActivation, deleteAlert } = useAuth();
+  const { showToast } = useToast();
+  const [alertToDelete, setAlertToDelete] = useState<string | null>(null);
+
+  const pendingAlert = useMemo(() => {
+    if (!alertToDelete || !user) {
+      return null;
+    }
+
+    return user.alerts.find((item) => item.id === alertToDelete) ?? null;
+  }, [alertToDelete, user]);
 
   if (!user) {
     return null;
   }
 
-  const handleDelete = (alertId: string) => {
-    Alert.alert('Supprimer l’alerte', 'Voulez-vous retirer cette alerte emploi ?', [
-      { text: 'Annuler', style: 'cancel' },
-      { text: 'Supprimer', style: 'destructive', onPress: () => deleteAlert(alertId) },
-    ]);
+  const handleDeleteRequest = (alertId: string) => {
+    setAlertToDelete(alertId);
+  };
+
+  const closeDialog = () => setAlertToDelete(null);
+
+  const confirmDelete = () => {
+    if (!alertToDelete) {
+      return;
+    }
+
+    deleteAlert(alertToDelete);
+    showToast({ message: 'Alerte supprimée.', type: 'success' });
+    setAlertToDelete(null);
   };
 
   return (
@@ -79,7 +100,7 @@ export default function AlertsScreen() {
                 <Text style={styles.secondaryButtonText}>Voir les offres</Text>
               </Pressable>
               <Pressable
-                onPress={() => handleDelete(item.id)}
+                onPress={() => handleDeleteRequest(item.id)}
                 style={({ pressed }) => [styles.dangerButton, pressed && styles.pressed]}
                 accessibilityRole="button">
                 <IconSymbol name="trash" size={16} color="#D13C3C" />
@@ -99,6 +120,19 @@ export default function AlertsScreen() {
           </View>
         )}
       </View>
+      <ConfirmationDialog
+        visible={alertToDelete !== null}
+        title="Supprimer l’alerte"
+        description={
+          pendingAlert
+            ? `Voulez-vous retirer l’alerte « ${pendingAlert.title} » ?`
+            : 'Voulez-vous retirer cette alerte emploi ?'
+        }
+        confirmLabel="Supprimer"
+        destructive
+        onCancel={closeDialog}
+        onConfirm={confirmDelete}
+      />
     </ScrollView>
   );
 }

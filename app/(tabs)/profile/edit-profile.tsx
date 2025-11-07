@@ -1,14 +1,16 @@
 import { useRouter } from 'expo-router';
 import React, { useMemo, useState } from 'react';
-import { Alert, Pressable, ScrollView, StyleSheet, Text, TextInput, View } from 'react-native';
+import { Pressable, ScrollView, StyleSheet, Text, TextInput, View } from 'react-native';
 
 import { IconSymbol } from '@/components/ui/icon-symbol';
 import { Colors } from '@/constants/theme';
 import { useAuth } from '@/context/AuthContext';
+import { useToast } from '@/context/ToastContext';
 
 export default function EditProfileScreen() {
   const router = useRouter();
   const { user, updateProfile } = useAuth();
+  const { showToast } = useToast();
   const [name, setName] = useState(user?.name ?? '');
   const [title, setTitle] = useState(user?.title ?? '');
   const [location, setLocation] = useState(user?.location ?? '');
@@ -35,7 +37,7 @@ export default function EditProfileScreen() {
     }
 
     if (!name.trim()) {
-      Alert.alert('Nom requis', 'Veuillez renseigner votre nom complet.');
+      showToast({ message: 'Veuillez renseigner votre nom complet.', type: 'error' });
       return;
     }
 
@@ -47,12 +49,8 @@ export default function EditProfileScreen() {
       bio: bio.trim() || undefined,
     });
 
-    Alert.alert('Profil mis à jour', 'Vos informations ont bien été enregistrées.', [
-      {
-        text: 'Fermer',
-        onPress: () => router.back(),
-      },
-    ]);
+    showToast({ message: 'Profil mis à jour.', type: 'success' });
+    router.back();
   };
 
   if (!user) {

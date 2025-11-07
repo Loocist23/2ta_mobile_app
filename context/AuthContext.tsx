@@ -7,10 +7,10 @@ import React, {
   useRef,
   useState,
 } from 'react';
-import { Alert } from 'react-native';
 
 import { jobOffers } from '@/constants/jobs';
 import { getItem, removeItem, setItem } from '@/utils/persistent-storage';
+import { useToast } from './ToastContext';
 
 type NotificationType = 'application' | 'alert' | 'information';
 
@@ -362,6 +362,7 @@ const mockUser: AuthenticatedUser = {
 };
 
 export function AuthProvider({ children }: { children: React.ReactNode }) {
+  const { showToast } = useToast();
   const [user, setUser] = useState<AuthenticatedUser | null>(null);
   const [loading, setLoading] = useState(false);
   const [hydrated, setHydrated] = useState(false);
@@ -1056,18 +1057,16 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       return;
     }
 
-    Alert.alert(
-      'Suppression du compte',
-      'Votre compte et vos données associées ont été supprimés. Vous pourrez revenir quand vous le souhaitez !',
-      [{ text: 'Fermer' }]
-    );
-
     const normalizedEmail = user.email.toLowerCase();
     delete accountsRef.current[normalizedEmail];
     activeEmailRef.current = null;
     setActiveProvider(null);
     setUser(null);
-  }, [user]);
+    showToast({
+      message: 'Votre compte a été supprimé. À bientôt sur 2TA !',
+      type: 'success',
+    });
+  }, [showToast, user]);
 
   const value = useMemo(
     () => ({

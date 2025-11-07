@@ -1,7 +1,6 @@
 import { useRouter } from 'expo-router';
 import React, { useMemo, useState } from 'react';
 import {
-  Alert,
   FlatList,
   Pressable,
   StyleSheet,
@@ -10,9 +9,11 @@ import {
   type GestureResponderEvent,
 } from 'react-native';
 
+import { ConfirmationDialog } from '@/components/ui/confirmation-dialog';
 import { IconSymbol } from '@/components/ui/icon-symbol';
 import { Colors } from '@/constants/theme';
 import { useAuth } from '@/context/AuthContext';
+import { useToast } from '@/context/ToastContext';
 
 type FilterValue = 'all' | 'unread' | 'application' | 'alert';
 
@@ -27,6 +28,8 @@ export default function NotificationsScreen() {
   const router = useRouter();
   const { user, markNotificationRead, markAllNotificationsRead, removeNotification } = useAuth();
   const [filter, setFilter] = useState<FilterValue>('all');
+  const { showToast } = useToast();
+  const [notificationToDelete, setNotificationToDelete] = useState<string | null>(null);
 
   const notifications = useMemo(() => {
     if (!user) {
@@ -43,6 +46,10 @@ export default function NotificationsScreen() {
   if (!user) {
     return null;
   }
+
+  const pendingNotification = notificationToDelete
+    ? user.notifications.find((item) => item.id === notificationToDelete)
+    : null;
 
   const handleNotificationPress = (notificationId: string) => {
     const notification = user.notifications.find((item) => item.id === notificationId);
@@ -71,11 +78,20 @@ export default function NotificationsScreen() {
     }
   };
 
-  const handleDelete = (notificationId: string) => {
-    Alert.alert('Supprimer la notification', 'Voulez-vous retirer cette notification ?', [
-      { text: 'Annuler', style: 'cancel' },
-      { text: 'Supprimer', style: 'destructive', onPress: () => removeNotification(notificationId) },
-    ]);
+  const requestDelete = (notificationId: string) => {
+    setNotificationToDelete(notificationId);
+  };
+
+  const closeDialog = () => setNotificationToDelete(null);
+
+  const confirmDelete = () => {
+    if (!notificationToDelete) {
+      return;
+    }
+
+    removeNotification(notificationToDelete);
+    showToast({ message: 'Notification supprimée.', type: 'success' });
+    setNotificationToDelete(null);
   };
 
   const renderIcon = (type: string) => {
@@ -143,7 +159,7 @@ export default function NotificationsScreen() {
                 accessibilityRole="button"
                 onPress={(event: GestureResponderEvent) => {
                   event.stopPropagation();
-                  handleDelete(item.id);
+                  requestDelete(item.id);
                 }}
                 style={({ pressed }) => [styles.deleteButton, pressed && styles.pressed]}
                 hitSlop={8}>
@@ -161,6 +177,20 @@ export default function NotificationsScreen() {
             </Text>
           </View>
         }
+      />
+
+      <ConfirmationDialog
+        visible={Boolean(notificationToDelete)}
+        title="Supprimer la notification"
+        description={
+          pendingNotification
+            ? `Voulez-vous retirer la notification « ${pendingNotification.title} » ?`
+            : 'Voulez-vous retirer cette notification ?'
+        }
+        confirmLabel="Supprimer"
+        destructive
+        onCancel={closeDialog}
+        onConfirm={confirmDelete}
       />
     </View>
   );

@@ -1,11 +1,12 @@
 import { useRouter } from 'expo-router';
 import React, { useMemo, useState } from 'react';
-import { Alert, Pressable, ScrollView, StyleSheet, Text, TextInput, View } from 'react-native';
+import { Pressable, ScrollView, StyleSheet, Text, TextInput, View } from 'react-native';
 
 import { IconSymbol } from '@/components/ui/icon-symbol';
 import { jobOffers } from '@/constants/jobs';
 import { Colors } from '@/constants/theme';
 import { useAuth } from '@/context/AuthContext';
+import { useToast } from '@/context/ToastContext';
 
 const STATUSES: ('Candidature envoyée' | "En cours d'étude" | 'Entretien planifié' | 'Proposition reçue')[] = [
   'Candidature envoyée',
@@ -25,6 +26,7 @@ function formatAppliedOn() {
 export default function NewApplicationScreen() {
   const router = useRouter();
   const { addApplication, user } = useAuth();
+  const { showToast } = useToast();
   const [selectedJobId, setSelectedJobId] = useState<string | null>(null);
   const [title, setTitle] = useState('');
   const [company, setCompany] = useState('');
@@ -41,7 +43,7 @@ export default function NewApplicationScreen() {
     const trimmedCompany = company.trim();
 
     if (!trimmedTitle || !trimmedCompany) {
-      Alert.alert('Informations manquantes', 'Indiquez un poste et une entreprise.');
+      showToast({ message: 'Indiquez un poste et une entreprise.', type: 'error' });
       return;
     }
 
@@ -56,9 +58,11 @@ export default function NewApplicationScreen() {
       notes: notes.trim() ? [notes.trim()] : [],
     });
 
-    Alert.alert('Candidature ajoutée', 'Votre suivi a été mis à jour.', [
-      { text: 'Fermer', onPress: () => router.back() },
-    ]);
+    showToast({
+      message: 'Candidature ajoutée à votre suivi.',
+      type: 'success',
+    });
+    router.back();
   };
 
   if (!user) {

@@ -1,19 +1,11 @@
 import { useLocalSearchParams, useRouter } from 'expo-router';
 import React, { useMemo, useState } from 'react';
-import {
-  Alert,
-  Pressable,
-  ScrollView,
-  StyleSheet,
-  Switch,
-  Text,
-  TextInput,
-  View,
-} from 'react-native';
+import { Pressable, ScrollView, StyleSheet, Switch, Text, TextInput, View } from 'react-native';
 
 import { IconSymbol } from '@/components/ui/icon-symbol';
 import { Colors } from '@/constants/theme';
 import { useAuth } from '@/context/AuthContext';
+import { useToast } from '@/context/ToastContext';
 
 const FREQUENCIES: ('Quotidienne' | 'Hebdomadaire')[] = ['Quotidienne', 'Hebdomadaire'];
 
@@ -21,6 +13,7 @@ export default function AlertEditorScreen() {
   const router = useRouter();
   const { alertId } = useLocalSearchParams<{ alertId?: string }>();
   const { user, createAlert, updateAlert } = useAuth();
+  const { showToast } = useToast();
 
   const existingAlert = useMemo(() => {
     if (!user || !alertId || typeof alertId !== 'string') {
@@ -49,17 +42,26 @@ export default function AlertEditorScreen() {
 
   const handleSave = () => {
     if (!title.trim()) {
-      Alert.alert('Titre requis', 'Nommez votre alerte pour la retrouver facilement.');
+      showToast({
+        message: 'Nommez votre alerte pour la retrouver facilement.',
+        type: 'error',
+      });
       return;
     }
 
     if (keywordList.length === 0) {
-      Alert.alert('Mots-clés requis', 'Ajoutez au moins un mot-clé séparé par une virgule.');
+      showToast({
+        message: 'Ajoutez au moins un mot-clé séparé par une virgule.',
+        type: 'error',
+      });
       return;
     }
 
     if (!location.trim()) {
-      Alert.alert('Localisation requise', 'Indiquez une ville, une région ou Télétravail.');
+      showToast({
+        message: 'Indiquez une ville, une région ou Télétravail.',
+        type: 'error',
+      });
       return;
     }
 
@@ -72,9 +74,8 @@ export default function AlertEditorScreen() {
         active,
         lastRun: existingAlert.lastRun,
       });
-      Alert.alert('Alerte mise à jour', 'Votre alerte a bien été enregistrée.', [
-        { text: 'Fermer', onPress: () => router.back() },
-      ]);
+      showToast({ message: 'Alerte mise à jour.', type: 'success' });
+      router.back();
       return;
     }
 
@@ -86,14 +87,11 @@ export default function AlertEditorScreen() {
       active,
     });
 
-    Alert.alert('Alerte créée', 'Nous vous avertirons dès que de nouvelles offres correspondent.', [
-      {
-        text: 'Voir les offres',
-        onPress: () =>
-          router.replace({ pathname: '/search', params: { alertId: id } }),
-      },
-      { text: 'Fermer', onPress: () => router.back() },
-    ]);
+    showToast({
+      message: 'Alerte créée. Nous vous préviendrons dès que de nouvelles offres correspondent.',
+      type: 'success',
+    });
+    router.replace({ pathname: '/search', params: { alertId: id } });
   };
 
   return (

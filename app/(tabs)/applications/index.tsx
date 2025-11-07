@@ -1,10 +1,11 @@
 import { useRouter } from 'expo-router';
 import React from 'react';
-import { Alert, Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
+import { Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
 
 import { IconSymbol } from '@/components/ui/icon-symbol';
 import { Colors } from '@/constants/theme';
 import { getJobById, useAuth } from '@/context/AuthContext';
+import { useToast } from '@/context/ToastContext';
 
 function getStatusColors(status: string) {
   switch (status) {
@@ -30,6 +31,7 @@ function formatNow(label: string) {
 export default function ApplicationsScreen() {
   const router = useRouter();
   const { user, addApplicationNote, updateApplicationStatus } = useAuth();
+  const { showToast } = useToast();
 
   if (!user) {
     return null;
@@ -38,12 +40,18 @@ export default function ApplicationsScreen() {
   const handleFollowUp = (applicationId: string) => {
     const note = formatNow('Relance envoyée');
     addApplicationNote(applicationId, note);
-    Alert.alert('Relance envoyée', 'Nous avons noté votre relance pour cette candidature.');
+    showToast({
+      message: 'Relance enregistrée pour cette candidature.',
+      type: 'success',
+    });
   };
 
   const handleStatusAdvance = (applicationId: string, currentStatus: string) => {
     if (currentStatus === 'Proposition reçue') {
-      Alert.alert('Statut à jour', 'Cette candidature est déjà au dernier stade.');
+      showToast({
+        message: 'Cette candidature est déjà au dernier stade.',
+        type: 'info',
+      });
       return;
     }
 
@@ -55,6 +63,10 @@ export default function ApplicationsScreen() {
         : 'Proposition reçue';
 
     updateApplicationStatus(applicationId, nextStatus, formatNow('Prochaine étape'));
+    showToast({
+      message: `Statut mis à jour : ${nextStatus}.`,
+      type: 'success',
+    });
   };
 
   return (
